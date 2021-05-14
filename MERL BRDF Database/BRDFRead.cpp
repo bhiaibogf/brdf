@@ -20,8 +20,10 @@
 
 
 #include <cstdlib>
-#include <iostream>
 #include <cmath>
+#include <iostream>
+#include <string>
+#include <fstream>
 
 #define BRDF_SAMPLING_RES_THETA_H       90
 #define BRDF_SAMPLING_RES_THETA_D       90
@@ -229,30 +231,58 @@ bool read_brdf(const char *filename, double *&brdf) {
     return true;
 }
 
+using namespace std;
 
-int main(int argc, char *argv[]) {
-    const char *filename = argv[1];
+struct Vector3 {
+    double x, y, z;
+
+    Vector3(double x, double y, double z) : x(x), y(y), z(z) {}
+
+    Vector3(double theta, double phi) {
+        x = sin(theta) * cos(phi);
+        y = sin(theta) * sin(phi);
+        z = cos(theta);
+    }
+
+    friend ostream &operator<<(ostream &out, Vector3 &v) {
+        out << '(' << v.x << ' ' << v.y << ' ' << v.z << ')';
+        return out;
+    }
+};
+
+int main() {
+    string brdf_name;
+    cin >> brdf_name;
+    string filename = brdf_name + ".binary";
+
     double *brdf;
-
     // read brdf
-    if (!read_brdf(filename, brdf)) {
-        fprintf(stderr, "Error reading %s\n", filename);
+    if (!read_brdf(filename.c_str(), brdf)) {
+        fprintf(stderr, "Error reading %s\n", filename.c_str());
         exit(1);
     }
 
-    // print out a 16x64x16x64 table table of BRDF values
-    const int n = 16;
+    ofstream bsdf_file;
+    bsdf_file.open("c://Users/bhiaibogf/PycharmProjects/Distiller/BSDF/" + brdf_name + ".txt");
+
+    const int n = 5;
     for (int i = 0; i < n; i++) {
         double theta_in = i * 0.5 * M_PI / n;
         for (int j = 0; j < 4 * n; j++) {
             double phi_in = j * 2.0 * M_PI / (4 * n);
+            Vector3 in(theta_in, phi_in);
+
             for (int k = 0; k < n; k++) {
                 double theta_out = k * 0.5 * M_PI / n;
                 for (int l = 0; l < 4 * n; l++) {
                     double phi_out = l * 2.0 * M_PI / (4 * n);
+                    Vector3 out(theta_out, phi_out);
+
                     double red, green, blue;
                     lookup_brdf_val(brdf, theta_in, phi_in, theta_out, phi_out, red, green, blue);
-                    printf("%f %f %f\n", (float) red, (float) green, (float) blue);
+                    Vector3 color(red, green, blue);
+
+                    bsdf_file << in << '|' << out << '|' << color << endl;
                 }
             }
         }
