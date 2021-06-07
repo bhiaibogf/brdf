@@ -24,6 +24,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <dirent.h>
 
 #define BRDF_SAMPLING_RES_THETA_H       90
 #define BRDF_SAMPLING_RES_THETA_D       90
@@ -251,41 +252,57 @@ struct Vector3 {
 };
 
 int main() {
-    string brdf_name;
-    cin >> brdf_name;
-    string filename = brdf_name + ".binary";
 
-    double *brdf;
-    // read brdf
-    if (!read_brdf(filename.c_str(), brdf)) {
-        fprintf(stderr, "Error reading %s\n", filename.c_str());
-        exit(1);
-    }
+    struct dirent *ptr;
+    DIR *dir = opendir((char *) "."); //打开一个目录
+    while ((ptr = readdir(dir)) != NULL) //循环读取目录数据
+    {
+        string filename = ptr->d_name;
+        auto idx = filename.find(".binary");
+        if (idx == -1) {
+            continue;
+        }
 
-    ofstream bsdf_file;
-    bsdf_file.open("c://Users/bhiaibogf/PycharmProjects/Distiller/BSDF/" + brdf_name + ".txt");
+        string brdf_name = filename.substr(0, idx);
+        cout << brdf_name << endl;
 
-    const int n = 5;
-    for (int i = 0; i < n; i++) {
-        double theta_in = i * 0.5 * M_PI / n;
-        for (int j = 0; j < 4 * n; j++) {
-            double phi_in = j * 2.0 * M_PI / (4 * n);
-            Vector3 in(theta_in, phi_in);
+        double *brdf;
+        // read brdf
+        if (!read_brdf(filename.c_str(), brdf)) {
+            fprintf(stderr, "Error reading %s\n", filename.c_str());
+            exit(1);
+        }
 
-            for (int k = 0; k < n; k++) {
-                double theta_out = k * 0.5 * M_PI / n;
-                for (int l = 0; l < 4 * n; l++) {
-                    double phi_out = l * 2.0 * M_PI / (4 * n);
-                    Vector3 out(theta_out, phi_out);
+        ofstream bsdf_file;
+        bsdf_file.open("c://Users/bhiaibogf/PycharmProjects/Distiller/BSDF/" + brdf_name + ".txt");
 
-                    double red, green, blue;
-                    lookup_brdf_val(brdf, theta_in, phi_in, theta_out, phi_out, red, green, blue);
-                    Vector3 color(red, green, blue);
+        Vector3 *in, *out, *color;
+        const int n = 6;
+        for (int i = 0; i < n; i++) {
+            double theta_in = i * 0.5 * M_PI / n;
+            for (int j = 0; j < 4 * n; j++) {
+                double phi_in = j * 2.0 * M_PI / (4 * n);
+                in = new Vector3(theta_in, phi_in);
 
-                    bsdf_file << in << '|' << out << '|' << color << endl;
+                for (int k = 0; k < n; k++) {
+                    double theta_out = k * 0.5 * M_PI / n;
+                    for (int l = 0; l < 4 * n; l++) {
+                        double phi_out = l * 2.0 * M_PI / (4 * n);
+                        out = new Vector3(theta_out, phi_out);
+
+                        double red, green, blue;
+                        lookup_brdf_val(brdf, theta_in, phi_in, theta_out, phi_out, red, green, blue);
+                        color = new Vector3(red, green, blue);
+
+                        bsdf_file << in << '|' << out << '|' << color << endl;
+                        free(in);
+                        free(out);
+                        free(color);
+                    }
                 }
             }
         }
+        free(brdf);
     }
     return 0;
 }
