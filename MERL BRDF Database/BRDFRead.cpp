@@ -292,12 +292,9 @@ int main() {
 
                         double red, green, blue;
                         lookup_brdf_val(brdf, theta_in, phi_in, theta_out, phi_out, red, green, blue);
-                        color = new Vector3(red, green, blue);
 
-                        bsdf_file << in << '|' << out << '|' << color << endl;
-                        free(in);
-                        free(out);
-                        free(color);
+                        color = new Vector3(red, green, blue);
+                        bsdf_file << *in << '|' << *out << '|' << *color << endl;
                     }
                 }
             }
