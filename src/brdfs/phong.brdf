@@ -5,7 +5,9 @@ analytic
 # [type] [name] [min val] [max val] [default val]
 
 ::begin parameters
-float n 1 1000 100
+float n 1 10000 10000
+color kd .1 .1 .1
+color ks .1 .1 .1
 bool divide_by_NdotL 1
 ::end parameters
 
@@ -15,6 +17,8 @@ bool divide_by_NdotL 1
 # add whatever else you want too, like sqr() below).
 
 ::begin shader
+
+const float PI = 3.14159265358979323846;
 
 vec3 reflect(vec3 I, vec3 N)
 {
@@ -37,7 +41,7 @@ vec3 BRDF( vec3 L, vec3 V, vec3 N, vec3 X, vec3 Y )
     float val = pow(max(0, dot(R,V)),n);
     if (divide_by_NdotL)
         val = val / dot(N,L);
-    return vec3(val);
+    return ks*val + kd/PI;
 }
 
 ::end shader
