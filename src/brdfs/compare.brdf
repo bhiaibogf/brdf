@@ -5,10 +5,10 @@ analytic
 # [type] [name] [min val] [max val] [default val]
 
 ::begin parameters
-float Kd 0 1 .1
-float Ks 0 1 .5
+color diffuseColor .1 .1 .1
+color baseColor .1 .1 .1
 float specwidth 0.002 1 .02
-float F0 0 1 .01
+float eta 1 5 1.45
 float kurtAlpha 0 2 0.5
 bool useBeckmannD 0
 bool useTrowbridgeReitzD 1
@@ -53,14 +53,28 @@ float NormalizedTrowbridgeReitz(float costhetaH, float w)
     return w2 / (PI * sqr( costhetaH*costhetaH * (w2 - 1) + 1 ));
 }
 
+float smithG1_Benckmann(float Ndotv, float alphaG){
+    float c = Ndotv / alphaG / sqrt(1 - sqr(Ndotv));
+    float c2 = sqr(c);
+    if (c < 1.6){
+        return (3.535 * c + 2.181 * c2) / (1.0 + 2.276 * c + 2.577 * c2);
+    } else{
+        return 1.0;
+    }
+}
+
 float smithG1_GGX(float Ndotv, float alphaG)
 {
     return 2/(1 + sqrt(1 + alphaG*alphaG * (1-Ndotv*Ndotv)/(Ndotv*Ndotv)));
 }
 
-float smithG_GGX(float NdotL, float NdotV, float alphaG)
+float smithG(float NdotL, float NdotV, float alphaG)
 {
-    return smithG1_GGX(NdotL, alphaG) * smithG1_GGX(NdotV, alphaG);
+    if (useBeckmannD){
+        return smithG1_Benckmann(NdotL, alphaG) * smithG1_Benckmann(NdotV, alphaG);
+    }else{
+        return smithG1_GGX(NdotL, alphaG) * smithG1_GGX(NdotV, alphaG);
+    }
 }
 
 float schlickG1(float v, float m)
@@ -119,6 +133,10 @@ float duerG(vec3 L, vec3 V, vec3 N)
     return dot(LplusV,LplusV) / (PI * pow(dot(LplusV,N), 4));
 }
 
+vec3 mon2lin(vec3 x)
+{
+    return vec3(pow(x[0], 2.2), pow(x[1], 2.2), pow(x[2], 2.2));
+}
 
 vec3 BRDF( vec3 L, vec3 V, vec3 N, vec3 X, vec3 Y )
 {
@@ -135,12 +153,13 @@ vec3 BRDF( vec3 L, vec3 V, vec3 N, vec3 X, vec3 Y )
         useTrowbridgeReitzD ? NormalizedTrowbridgeReitz(NdotH, specwidth) :
         1.0;
 
+    float F0 = sqr((eta-1)/(eta+1));
     float F =
         useSchlickF ? SchlickFresnel(F0, 1, LdotH) :
         1.0;
 
     float G =
-        useSmithG ? smithG_GGX(NdotL, NdotV, specwidth) / (4*NdotL*NdotV) :
+        useSmithG ? smithG(NdotL, NdotV, specwidth) / (4*NdotL*NdotV) :
         useSchlickG ? schlickG(NdotL, NdotV, specwidth) / (4*NdotL*NdotV) :
         useWardG ? wardG(NdotL, NdotV) :
         useNeumannG ? neumannG(NdotL, NdotV) :
@@ -152,7 +171,7 @@ vec3 BRDF( vec3 L, vec3 V, vec3 N, vec3 X, vec3 Y )
         useDuerG ? duerG(L, V, N) :
         1.0;
 
-    return vec3(Ks*D*F*G) + vec3(Kd,0,0);
+    return mon2lin(baseColor)*D*F*G + mon2lin(diffuseColor)/PI;
 }
 
 ::end shader
